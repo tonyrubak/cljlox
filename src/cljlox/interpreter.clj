@@ -62,15 +62,17 @@
                 (throw (ex-info "Operands must be two numbers or two strings." {:token token})))))))
 
 (defmethod interpret :comparison [expr]
-  (let [left (interpret (:left expr))
-        right (interpret (:right expr))
-        token (:token expr)
+  (let [token (:token expr)
         operator (:token-type token)]
-    (case operator
-      :greater (> left right)
-      :greater-equal (>= left right)
-      :less (< left right)
-      :less-equal (<= left right))))
+    (if-let [right (checkNumericOperand (interpret (:right expr)))]
+      (if-let [left (checkNumericOperand (interpret (:left expr)))]
+        (case operator
+          :greater (> left right)
+          :greater-equal (>= left right)
+          :less (< left right)
+          :less-equal (<= left right))
+        (throw (ex-info "Operands must be numbers." {:token token})))
+      (throw (ex-info "Operands must be numbers." {:token token})))))
 
 (defmethod interpret :equality [expr]
   (defn isEqual
