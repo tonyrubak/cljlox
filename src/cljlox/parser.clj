@@ -1,5 +1,6 @@
 (ns cljlox.parser
-  (:require [cljlox.errors :as errors]))
+  (:require [cljlox.errors :as errors]
+            [cljlox.parser :as parser]))
 
 (defmulti error (fn [token _] (:token-type token)))
 
@@ -41,20 +42,23 @@
         {:tokens tokens :position (inc position)}))))
 
 (defn check
-  "Check if the next character is a given character"
-  [{tokens :tokens, position :position} type]
-  (if (empty? tokens)
-    false
-    (if (isAtEnd {:tokens tokens :position position})
-      false
-      (= type (:token-type (current {:tokens tokens :position position}))))))
+  "Check if the next token is of the given type"
+  [parser token-type]
+  (let [tokens (:tokens parser)]
+    (if (empty? tokens)
+      nil
+      (if (isAtEnd parser)
+        nil
+        (if (= token-type (:token-type (current parser)))
+          (advance parser)
+          nil)))))
 
 (declare expression)
 
 (defn consume
   [parser token-type]
-  (if (check parser token-type)
-    [:ok (advance parser)]
+  (if-let [forward (check parser token-type)]
+    [:ok forward]
     [:error parser]))
 
 (defn primary
@@ -144,10 +148,52 @@
   [parser]
   (equality parser))
 
+(defn printStatement
+  [parser]
+  (let [[value forward] (expression (advance parser))]
+    (case (first (consume forward :semicolon))
+      :ok [{:statement-type :print :expression value} (advance forward)]
+      :error (throw (error (current forward) "Expect ';' after value.")))))
+
+(defn expressionStatement
+  [parser]
+  (let [[value forward] (expression parser)]
+    (case (first (consume forward :semicolon))
+      :ok [{:statement-type :expression :expression value} (advance forward)]
+      :error (throw (error (current forward) "Expect ';' after expression.")))))
+
+(defn varDeclaration
+  [parser]
+  (let [[status forward] (consume parser :identifier)]
+    (case status
+      :ok (let [name (previous forward)
+                [initializer forward] (if-let [forward (check forward :equal)]
+                                        (expression forward)
+                                        [nil forward])]
+            (case (first (consume forward :semicolon))
+              :ok [{:statement-type :var :name name :initializer initializer} (advance forward)]
+              :error (throw (error (current forward) "Expect ';' after variable declaration."))))
+      :error (throw (error (current parser) "Expect variable name.")))))
+
+(defn statement
+  [parser]
+  (let [token (current parser)]
+    (case (:token-type token)
+      :print (printStatement parser)
+      (expressionStatement parser))))
+
+(defn declaration
+  [parser]
+  (if (= (:token-type (current parser)) :var)
+    (varDeclaration (advance parser))
+    (statement parser)))
+
 (defn parse
   "Parse tokens"
   [tokens]
-  (try
-    (first (expression {:tokens tokens :position 0}))
-    (catch Exception _
-      nil)))
+  (loop [parser {:tokens tokens :position 0}
+         statements []]
+    (if (isAtEnd parser)
+      (into [] (reverse statements))
+      (let [[next forward] (declaration parser)]
+        (recur forward (cons next statements))))))

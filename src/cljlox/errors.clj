@@ -5,3 +5,9 @@
   [line where message]
   (println (str "[line " line "] Error" where ": " message))
   (flush))
+
+(defn runtimeError
+  "Report a runtime error"
+  [token message]
+  (report (:line token) "" message)
+  (flush))

@@ -7,12 +7,11 @@
 (defn run
   "Run a string"
   [source]
-  (try 
+  (try
     (-> source
         (scanner/scanTokens)
         (parser/parse)
-        (interpreter/interpret)
-        (println))
+        (interpreter/run)) 
     (catch Exception _)))
 
 (defn runFile

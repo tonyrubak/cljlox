@@ -7,7 +7,16 @@
     operand
     nil))
 
-(defmulti interpret (fn [expr] (:expr-type expr)))
+(defmulti interpret (fn [expr] (if-let [expr-type (:expr-type expr)]
+                                 expr-type
+                                 (:statement-type expr))))
+
+(defmethod interpret :expression [expr]
+  (interpret (:expression expr)))
+
+(defmethod interpret :print [expr]
+  (println (interpret (:expression expr)))
+  (flush))
 
 (defmethod interpret :literal [expr]
   (:value expr))
@@ -88,3 +97,11 @@
     (case operator
       :bang-equal (not (isEqual left right))
       :equal-equal (isEqual left right))))
+
+(defn run
+  [statements]
+  (doseq [statement statements]
+    (try
+      (interpret statement)
+      (catch Exception e
+        (errors/runtimeError (:token e) (:message e))))))
