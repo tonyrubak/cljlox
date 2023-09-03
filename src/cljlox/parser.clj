@@ -46,20 +46,20 @@
   [parser token-type]
   (let [tokens (:tokens parser)]
     (if (empty? tokens)
-      nil
+      false
       (if (isAtEnd parser)
-        nil
+        false
         (if (= token-type (:token-type (current parser)))
-          (advance parser)
-          nil)))))
+          true
+          false)))))
 
 (declare expression)
 
 (defn consume
   [parser token-type]
-  (if-let [forward (check parser token-type)]
-    [:ok forward]
-    [:error parser]))
+  (if (check parser token-type)
+    (advance parser)
+    nil))
 
 (defn primary
   [parser]
@@ -71,9 +71,9 @@
       :number [{:expr-type :literal :value (:literal (current parser)) :type :number} (advance parser)]
       :string [{:expr-type :literal :value (:literal (current parser)) :type :string} (advance parser)]
       :left-paren (let [[inner forward] (expression (advance parser))]
-                    (case (first (consume forward :right-paren))
-                      :ok [{:expr-type :grouping :expression inner} (advance forward)]
-                      :error (throw (error (current forward) "Expect ')' after expression."))))
+                    (if-let [forward (consume forward :right-paren)]
+                      [{:expr-type :grouping :expression inner} forward]
+                      (throw (error (current forward) "Expect ')' after expression."))))
       (throw (error (current parser) "Expect expression.")))))
 
 (defn unary
@@ -151,29 +151,28 @@
 (defn printStatement
   [parser]
   (let [[value forward] (expression (advance parser))]
-    (case (first (consume forward :semicolon))
-      :ok [{:statement-type :print :expression value} (advance forward)]
-      :error (throw (error (current forward) "Expect ';' after value.")))))
+    (if-let [forward (consume forward :semicolon)]
+      [{:statement-type :print :expression value} (advance forward)]
+      (throw (error (current forward) "Expect ';' after value.")))))
 
 (defn expressionStatement
   [parser]
   (let [[value forward] (expression parser)]
-    (case (first (consume forward :semicolon))
-      :ok [{:statement-type :expression :expression value} (advance forward)]
-      :error (throw (error (current forward) "Expect ';' after expression.")))))
+    (if-let [forward (consume forward :semicolon)]
+      [{:statement-type :expression :expression value} (advance forward)]
+      (throw (error (current forward) "Expect ';' after expression.")))))
 
 (defn varDeclaration
   [parser]
-  (let [[status forward] (consume parser :identifier)]
-    (case status
-      :ok (let [name (previous forward)
-                [initializer forward] (if-let [forward (check forward :equal)]
-                                        (expression forward)
-                                        [nil forward])]
-            (case (first (consume forward :semicolon))
-              :ok [{:statement-type :var :name name :initializer initializer} (advance forward)]
-              :error (throw (error (current forward) "Expect ';' after variable declaration."))))
-      :error (throw (error (current parser) "Expect variable name.")))))
+  (if-let [forward (consume parser :identifier)]
+    (let [name (previous forward)
+          [initializer forward] (if (check forward :equal)
+                                  (expression (advance forward))
+                                  [nil forward])]
+      (if-let [forward (consume forward :semicolon)]
+        [{:statement-type :var :name name :initializer initializer} forward]
+        (throw (error (current forward) "Expect ';' after variable declaration."))))
+    (throw (error (current parser) "Expect variable name."))))
 
 (defn statement
   [parser]
@@ -184,7 +183,7 @@
 
 (defn declaration
   [parser]
-  (if (= (:token-type (current parser)) :var)
+  (if (check parser :var)
     (varDeclaration (advance parser))
     (statement parser)))
 
