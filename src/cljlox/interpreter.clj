@@ -1,5 +1,6 @@
 (ns cljlox.interpreter
-  (:require [cljlox.errors :as errors]))
+  (:require [cljlox.errors :as errors]
+            [cljlox.environment :as env]))
 
 (defn checkNumericOperand
   [operand]
@@ -10,6 +11,12 @@
 (defmulti interpret (fn [expr] (if-let [expr-type (:expr-type expr)]
                                  expr-type
                                  (:statement-type expr))))
+
+(defmethod interpret :var [expr]
+  (if-let [initializer (:initializer expr)]
+    (let [value (interpret initializer)]
+      (env/define (atom {}) (:lexeme (:name expr)) value))
+    (env/define (atom {}) (:lexeme (:name expr)) nil)))
 
 (defmethod interpret :expression [expr]
   (interpret (:expression expr)))

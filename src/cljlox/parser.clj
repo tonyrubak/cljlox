@@ -70,6 +70,7 @@
       :nil [{:expr-type :literal :value nil :type :nil} (advance parser)]
       :number [{:expr-type :literal :value (:literal (current parser)) :type :number} (advance parser)]
       :string [{:expr-type :literal :value (:literal (current parser)) :type :string} (advance parser)]
+      :identifier [{:expr-type :variable :name (current parser)} (advance parser)]
       :left-paren (let [[inner forward] (expression (advance parser))]
                     (if-let [forward (consume forward :right-paren)]
                       [{:expr-type :grouping :expression inner} forward]
