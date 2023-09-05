@@ -2,11 +2,12 @@
   (:gen-class)
   (:require [cljlox.parser :as parser]
             [cljlox.scanner :as scanner]
-            [cljlox.interpreter :as interpreter]))
+            [cljlox.interpreter :as interpreter]
+            [cljlox.environment :as environment]))
 
 (defn run
   "Run a string"
-  ([source] (run source (atom {})))
+  ([source] (run source (environment/create)))
   ([source env]
    (try
      (-> source
@@ -24,7 +25,7 @@
 (defn runPrompt
   "Run a prompt"
   []
-  (let [env (atom {})]
+  (let [env (environment/create)]
     (loop []
       (print "> ")
       (flush)

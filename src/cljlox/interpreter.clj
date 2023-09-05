@@ -108,6 +108,11 @@
       :bang-equal (not (isEqual left right))
       :equal-equal (isEqual left right))))
 
+(defmethod interpret :assign [expr env]
+  (let [value (interpret (:value expr) env)
+        name (:lexeme (:name expr))]
+    (environment/assign env name value)))
+
 (defn run
   [statements env]
   (doseq [statement statements]

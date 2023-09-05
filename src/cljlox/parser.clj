@@ -53,6 +53,12 @@
           true
           false)))))
 
+(defn match
+  [parser token-type]
+  (if (check parser token-type)
+    (advance parser)
+    nil))
+
 (declare expression)
 
 (defn consume
@@ -145,9 +151,21 @@
                   forward]))
         [expr forward]))))
 
+(defn assignment
+  [parser]
+  (let [[expr forward] (equality parser)]
+    (if-let [forward (match forward :equal)]
+      (let [equals (previous forward)
+            [value forward] (assignment forward)]
+        (if (= (:expr-type expr) :variable)
+          (let [name (:name expr)]
+            [{:expr-type :assign :name name :value value} forward])
+          (throw (error equals "Invalid assignment target."))))
+      [expr forward])))
+
 (defn expression
   [parser]
-  (equality parser))
+  (assignment parser))
 
 (defn printStatement
   [parser]
