@@ -6,13 +6,14 @@
 
 (defn run
   "Run a string"
-  [source]
-  (try
-    (-> source
-        (scanner/scanTokens)
-        (parser/parse)
-        (interpreter/run)) 
-    (catch Exception _)))
+  ([source] (run source (atom {})))
+  ([source env]
+   (try
+     (-> source
+         (scanner/scanTokens)
+         (parser/parse)
+         (#(interpreter/run % env)))
+     (catch Exception _))))
 
 (defn runFile
   "Run a file"
@@ -23,12 +24,13 @@
 (defn runPrompt
   "Run a prompt"
   []
-  (loop []
-    (print "> ")
-    (flush)
-    (when-let [line (read-line)]
-      (run line)
-      (recur))))
+  (let [env (atom {})]
+    (loop []
+      (print "> ")
+      (flush)
+      (when-let [line (read-line)]
+        (run line env)
+        (recur)))))
 
 (defn -main
   "I don't do a whole lot ... yet."

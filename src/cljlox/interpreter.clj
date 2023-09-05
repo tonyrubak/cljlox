@@ -109,10 +109,9 @@
       :equal-equal (isEqual left right))))
 
 (defn run
-  [statements]
-  (let [env (atom {})]
-    (doseq [statement statements]
-      (try
-        (interpret statement env)
-        (catch Exception e
-          (errors/runtimeError (:token e) (:message e)))))))
+  [statements env]
+  (doseq [statement statements]
+    (try
+      (interpret statement env)
+      (catch Exception e
+        (errors/runtimeError (:token e) (:message e))))))
