@@ -113,6 +113,14 @@
         name (:lexeme (:name expr))]
     (environment/assign env name value)))
 
+(defn executeBlock
+  [statements env]
+  (doseq [statement statements]
+    (interpret statement env)))
+
+(defmethod interpret :block [expr env]
+  (executeBlock (:statements expr) (environment/create env)))
+
 (defn run
   [statements env]
   (doseq [statement statements]

@@ -60,6 +60,7 @@
     nil))
 
 (declare expression)
+(declare declaration)
 
 (defn consume
   [parser token-type]
@@ -171,7 +172,7 @@
   [parser]
   (let [[value forward] (expression (advance parser))]
     (if-let [forward (consume forward :semicolon)]
-      [{:statement-type :print :expression value} (advance forward)]
+      [{:statement-type :print :expression value} forward]
       (throw (error (current forward) "Expect ';' after value.")))))
 
 (defn expressionStatement
@@ -193,11 +194,24 @@
         (throw (error (current forward) "Expect ';' after variable declaration."))))
     (throw (error (current parser) "Expect variable name."))))
 
+(defn block
+  [parser]
+  (loop [statements nil
+         forward parser]
+    (if (and (not (isAtEnd forward))
+             (not (check forward :right-brace)))
+      (let [[statement forward] (declaration forward)]
+        (recur (cons statement statements) forward))
+      (if-let [forward (consume forward :right-brace)]
+        [{:statement-type :block :statements (into [] (reverse statements))} forward]
+        (throw (error (current forward) "Expect '}' after block."))))))
+
 (defn statement
   [parser]
   (let [token (current parser)]
     (case (:token-type token)
       :print (printStatement parser)
+      :left-brace (block (advance parser))
       (expressionStatement parser))))
 
 (defn declaration
