@@ -5,7 +5,7 @@
   [env name value]
   (swap! env #(assoc % name value)))
 
-(defn get
+(defn lookup
   "Get a variable from the environment"
   [env name]
   (if-let [value (get @env name)]

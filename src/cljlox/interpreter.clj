@@ -1,6 +1,6 @@
 (ns cljlox.interpreter
   (:require [cljlox.errors :as errors]
-            [cljlox.environment :as env]))
+            [cljlox.environment :as environment]))
 
 (defn checkNumericOperand
   [operand]
@@ -8,36 +8,39 @@
     operand
     nil))
 
-(defmulti interpret (fn [expr] (if-let [expr-type (:expr-type expr)]
-                                 expr-type
-                                 (:statement-type expr))))
+(defmulti interpret (fn [expr _] (if-let [expr-type (:expr-type expr)]
+                                     expr-type
+                                     (:statement-type expr))))
 
-(defmethod interpret :var [expr]
+(defmethod interpret :var [expr env]
   (if-let [initializer (:initializer expr)]
-    (let [value (interpret initializer)]
-      (env/define (atom {}) (:lexeme (:name expr)) value))
-    (env/define (atom {}) (:lexeme (:name expr)) nil)))
+    (let [value (interpret initializer env)]
+      (environment/define env (:lexeme (:name expr)) value))
+    (environment/define env (:lexeme (:name expr)) nil)))
 
-(defmethod interpret :expression [expr]
-  (interpret (:expression expr)))
+(defmethod interpret :expression [expr env]
+  (interpret (:expression expr) env))
 
-(defmethod interpret :print [expr]
-  (println (interpret (:expression expr)))
+(defmethod interpret :print [expr env]
+  (println (interpret (:expression expr) env))
   (flush))
 
-(defmethod interpret :literal [expr]
+(defmethod interpret :variable [expr env]
+  (environment/lookup env (:lexeme (:name expr))))
+
+(defmethod interpret :literal [expr _]
   (:value expr))
 
-(defmethod interpret :grouping [expr]
-  (interpret (:expression expr)))
+(defmethod interpret :grouping [expr env]
+  (interpret (:expression expr) env))
 
-(defmethod interpret :unary [expr]
+(defmethod interpret :unary [expr env]
   (defn isTruthy? [value]
     (case value
       nil false
       false false
       true))
-  (let [right (interpret (:right expr))
+  (let [right (interpret (:right expr) env)
         token (:token expr)
         operator (:token-type token)]
     (case operator
@@ -46,9 +49,9 @@
                (throw (ex-info "Operand must be a number." {:token token})))
       :bang (not (isTruthy? right)))))
 
-(defmethod interpret :binary [expr]
-  (let [left (interpret (:left expr))
-        right (interpret (:right expr))
+(defmethod interpret :binary [expr env]
+  (let [left (interpret (:left expr) env)
+        right (interpret (:right expr) env)
         token (:token expr)
         operator (:token-type token)]
     (case operator
@@ -77,11 +80,11 @@
                   (throw (ex-info "Operands must be strings." {:token token})))
                 (throw (ex-info "Operands must be two numbers or two strings." {:token token})))))))
 
-(defmethod interpret :comparison [expr]
+(defmethod interpret :comparison [expr env]
   (let [token (:token expr)
         operator (:token-type token)]
-    (if-let [right (checkNumericOperand (interpret (:right expr)))]
-      (if-let [left (checkNumericOperand (interpret (:left expr)))]
+    (if-let [right (checkNumericOperand (interpret (:right expr) env))]
+      (if-let [left (checkNumericOperand (interpret (:left expr) env))]
         (case operator
           :greater (> left right)
           :greater-equal (>= left right)
@@ -90,15 +93,15 @@
         (throw (ex-info "Operands must be numbers." {:token token})))
       (throw (ex-info "Operands must be numbers." {:token token})))))
 
-(defmethod interpret :equality [expr]
+(defmethod interpret :equality [expr env]
   (defn isEqual
     [a b]
     (case [a b]
       [nil nil] true
       [nil _] false
       (= a b)))
-  (let [left (interpret (:left expr))
-        right (interpret (:right expr))
+  (let [left (interpret (:left expr) env)
+        right (interpret (:right expr) env)
         token (:token expr)
         operator (:token-type token)]
     (case operator
@@ -107,8 +110,9 @@
 
 (defn run
   [statements]
-  (doseq [statement statements]
-    (try
-      (interpret statement)
-      (catch Exception e
-        (errors/runtimeError (:token e) (:message e))))))
+  (let [env (atom {})]
+    (doseq [statement statements]
+      (try
+        (interpret statement env)
+        (catch Exception e
+          (errors/runtimeError (:token e) (:message e)))))))
