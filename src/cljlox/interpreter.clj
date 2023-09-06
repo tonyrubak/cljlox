@@ -2,6 +2,14 @@
   (:require [cljlox.errors :as errors]
             [cljlox.environment :as environment]))
 
+
+(defn isTruthy? [value]
+  (case value
+    nil false
+    false false
+    true))
+
+
 (defn checkNumericOperand
   [operand]
   (if (= (type operand) java.lang.Double)
@@ -34,12 +42,7 @@
 (defmethod interpret :grouping [expr env]
   (interpret (:expression expr) env))
 
-(defmethod interpret :unary [expr env]
-  (defn isTruthy? [value]
-    (case value
-      nil false
-      false false
-      true))
+(defmethod interpret :unary [expr env] 
   (let [right (interpret (:right expr) env)
         token (:token expr)
         operator (:token-type token)]
@@ -112,6 +115,13 @@
   (let [value (interpret (:value expr) env)
         name (:lexeme (:name expr))]
     (environment/assign env name value)))
+
+(defmethod interpret :if [expr env]
+  (if (isTruthy? (interpret (:condition expr) env))
+    (interpret (:then-branch expr) env)
+    (if-let [elseBranch (:else-branch expr)]
+      (interpret elseBranch env)
+      nil)))
 
 (defn executeBlock
   [statements env]

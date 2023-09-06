@@ -61,6 +61,7 @@
 
 (declare expression)
 (declare declaration)
+(declare statement)
 
 (defn consume
   [parser token-type]
@@ -206,18 +207,32 @@
         [{:statement-type :block :statements (into [] (reverse statements))} forward]
         (throw (error (current forward) "Expect '}' after block."))))))
 
+(defn ifStatement
+  [parser]
+  (if-let [forward (consume parser :left-paren)]
+    (let [[condition forward] (expression forward)]
+      (if-let [forward (consume forward :right-paren)]
+        (let [[thenBranch forward] (statement forward)]
+          (if-let [forward (consume forward :else)]
+            (let [[elseBranch forward] (statement forward)]
+              [{:statement-type :if :condition condition :then-branch thenBranch :else-branch elseBranch} forward])
+            [{:statement-type :if :condition condition :then-branch thenBranch :else-branch nil} forward]))
+        (throw (error (current forward) "Expect ')' after if condition."))))
+    (throw (error (current parser) "Expect '(' after 'if'."))))
+
 (defn statement
   [parser]
   (let [token (current parser)]
     (case (:token-type token)
       :print (printStatement parser)
       :left-brace (block (advance parser))
+      :if (ifStatement (advance parser))
       (expressionStatement parser))))
 
 (defn declaration
   [parser]
-  (if (check parser :var)
-    (varDeclaration (advance parser))
+  (if-let [forward (match parser :var)]
+    (varDeclaration forward)
     (statement parser)))
 
 (defn parse
