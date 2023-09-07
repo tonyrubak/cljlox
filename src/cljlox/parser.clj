@@ -257,6 +257,36 @@
         (throw (error (current forward) "Expect ')' after while condition."))))
     (throw (error (current parser) "Expect '(' after 'while'."))))
 
+(defn forStatement
+  [parser]
+  (if-let [forward (consume parser :left-paren)]
+    (let [[initializer forward]
+          (case (:token-type (current forward))
+            :semicolon [nil (advance forward)]
+            :var (varDeclaration (advance forward))
+            (expressionStatement forward))
+          [condition forward] (if (not (check forward :semicolon))
+                                (expression forward)
+                                [nil forward])
+          [increment forward] (if (not (check forward :right-paren))
+                                (expression (advance forward))
+                                [nil forward])]
+      (if-let [forward (consume forward :right-paren)]
+        (let [[body forward] (statement forward)
+              statements (if-let [init initializer]
+                           (list init)
+                           nil)
+              body (if-let [inc increment]
+                     {:statement-type :block :statements [body inc]}
+                     body)
+              body (if-let [cond condition]
+                     {:statement-type :while :condition cond :body body}
+                     {:statement-type :while :condition {:expr-type :literal :value true :type :boolean} :body body})
+              statements (cons body statements)]
+          [{:statement-type :block :statements (into [] (reverse statements))} forward])
+        (throw (error (current forward) "Expect ')' after for clauses."))))
+    (throw (error (current parser) "Expect '(' after 'for'."))))
+
 (defn statement
   [parser]
   (let [token (current parser)]
@@ -265,6 +295,7 @@
       :left-brace (block (advance parser))
       :if (ifStatement (advance parser))
       :while (whileStatement (advance parser))
+      :for (forStatement (advance parser))
       (expressionStatement parser))))
 
 (defn declaration
