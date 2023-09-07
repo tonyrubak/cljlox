@@ -9,7 +9,7 @@
 
 (def keywords
   ["and" "class" "else" "false" "for" "fun" "if" "nil" "or" "print" "return"
-   "super" "this" "true" "var" "while"])
+   "super" "this" "true" "var" "while" "break"])
 
 (defn number
   [{line :line, char-list :char-list}]

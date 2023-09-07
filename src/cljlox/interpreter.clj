@@ -143,9 +143,18 @@
 (defmethod interpret :block [expr env]
   (executeBlock (:statements expr) (environment/create env)))
 
+
 (defmethod interpret :while [expr env]
-  (while (isTruthy? (interpret (:condition expr) env))
-    (interpret (:body expr) env)))
+  (try
+    (while (isTruthy? (interpret (:condition expr) env))
+      (interpret (:body expr) env))
+    (catch Exception e
+      (if (= :break (-> e ex-data :cause))
+        nil
+        (throw e)))))
+
+(defmethod interpret :break [expr _]
+  (throw (ex-info "Break statement not within loop." {:cause :break :token (:token expr)})))
 
 (defn run
   [statements env]

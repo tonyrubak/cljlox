@@ -287,6 +287,12 @@
         (throw (error (current forward) "Expect ')' after for clauses."))))
     (throw (error (current parser) "Expect '(' after 'for'."))))
 
+(defn breakStatement
+  [parser]
+  (if-let [forward (consume parser :semicolon)]
+    [{:statement-type :break} forward]
+    (throw (error (current parser) "Expect ';' after 'break'."))))
+
 (defn statement
   [parser]
   (let [token (current parser)]
@@ -296,6 +302,7 @@
       :if (ifStatement (advance parser))
       :while (whileStatement (advance parser))
       :for (forStatement (advance parser))
+      :break (breakStatement (advance parser))
       (expressionStatement parser))))
 
 (defn declaration
