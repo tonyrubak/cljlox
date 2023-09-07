@@ -207,7 +207,7 @@
   [parser]
   (let [[value forward] (expression parser)]
     (if-let [forward (consume forward :semicolon)]
-      [{:statement-type :expression :expression value} (advance forward)]
+      [{:statement-type :expression :expression value} forward]
       (throw (error (current forward) "Expect ';' after expression.")))))
 
 (defn varDeclaration
@@ -247,6 +247,16 @@
         (throw (error (current forward) "Expect ')' after if condition."))))
     (throw (error (current parser) "Expect '(' after 'if'."))))
 
+(defn whileStatement
+  [parser]
+  (if-let [forward (consume parser :left-paren)]
+    (let [[condition forward] (expression forward)]
+      (if-let [forward (consume forward :right-paren)]
+        (let [[body forward] (statement forward)]
+          [{:statement-type :while :condition condition :body body} forward])
+        (throw (error (current forward) "Expect ')' after while condition."))))
+    (throw (error (current parser) "Expect '(' after 'while'."))))
+
 (defn statement
   [parser]
   (let [token (current parser)]
@@ -254,6 +264,7 @@
       :print (printStatement parser)
       :left-brace (block (advance parser))
       :if (ifStatement (advance parser))
+      :while (whileStatement (advance parser))
       (expressionStatement parser))))
 
 (defn declaration

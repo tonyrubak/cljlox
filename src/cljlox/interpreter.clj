@@ -143,6 +143,10 @@
 (defmethod interpret :block [expr env]
   (executeBlock (:statements expr) (environment/create env)))
 
+(defmethod interpret :while [expr env]
+  (while (isTruthy? (interpret (:condition expr) env))
+    (interpret (:body expr) env)))
+
 (defn run
   [statements env]
   (doseq [statement statements]
