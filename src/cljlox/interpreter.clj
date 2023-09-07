@@ -123,6 +123,18 @@
       (interpret elseBranch env)
       nil)))
 
+(defmethod interpret :logical [expr env]
+  (let [left (interpret (:left expr) env)
+        token (:token expr)
+        operator (:token-type token)]
+    (case operator
+      :or (if (isTruthy? left)
+            left
+            (interpret (:right expr) env))
+      :and (if (isTruthy? left)
+             (interpret (:right expr) env)
+             left))))
+
 (defn executeBlock
   [statements env]
   (doseq [statement statements]

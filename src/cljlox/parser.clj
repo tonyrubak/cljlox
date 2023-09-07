@@ -153,9 +153,36 @@
                   forward]))
         [expr forward]))))
 
+(defn andExpression
+  [parser]
+  (loop [[expr forward] (equality parser)]
+    (let [token (current forward)]
+      (if-let [forward (match forward :and)]
+        (let [[right forward] (equality forward)]
+          (recur [{:expr-type :logical
+                   :token token
+                   :left expr
+                   :right right}
+                  forward]))
+        [expr forward]))))
+
+
+(defn orExpression
+  [parser]
+  (loop [[expr forward] (andExpression parser)]
+    (let [token (current forward)]
+      (if-let [forward (match forward :or)]
+        (let [[right forward] (andExpression forward)]
+          (recur [{:expr-type :logical
+                   :token token
+                   :left expr
+                   :right right}
+                  forward]))
+        [expr forward]))))
+
 (defn assignment
   [parser]
-  (let [[expr forward] (equality parser)]
+  (let [[expr forward] (orExpression parser)]
     (if-let [forward (match forward :equal)]
       (let [equals (previous forward)
             [value forward] (assignment forward)]
