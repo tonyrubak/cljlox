@@ -162,4 +162,6 @@
     (try
       (interpret statement env)
       (catch Exception e
-        (errors/runtimeError (:token e) (:message e))))))
+        (let [token (-> e ex-data :token)
+              message (ex-message e)]
+          (errors/runtimeError token message))))))

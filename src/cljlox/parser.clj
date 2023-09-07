@@ -289,9 +289,10 @@
 
 (defn breakStatement
   [parser]
-  (if-let [forward (consume parser :semicolon)]
-    [{:statement-type :break} forward]
-    (throw (error (current parser) "Expect ';' after 'break'."))))
+  (let [token (previous parser)]
+    (if-let [forward (consume parser :semicolon)]
+      [{:statement-type :break :token token} forward]
+      (throw (error (current parser) "Expect ';' after 'break'.")))))
 
 (defn statement
   [parser]
