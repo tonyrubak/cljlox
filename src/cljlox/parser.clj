@@ -85,6 +85,31 @@
                       (throw (error (current forward) "Expect ')' after expression."))))
       (throw (error (current parser) "Expect expression.")))))
 
+
+(defn getArguments
+  [parser]
+  (loop [arguments nil
+         forward parser]
+    (if-let [forward (consume forward :right-paren)]
+      [forward (into [] (reverse arguments))]
+      (let [[argument forward] (expression forward)]
+        (if-let [forward (consume forward :comma)]
+          (recur (cons argument arguments) forward)
+          (recur (cons argument arguments) forward))))))
+
+(defn finishCall
+  [callee parser]
+  (-> parser
+      (getArguments)
+      ((fn [result] [{:expr-type :call :callee callee :arguments (second result)} (first result)]))))
+
+(defn call
+  [parser]
+  (loop [[expr forward] (primary parser)]
+    (if-let [forward (match forward :left-paren)]
+      (recur (finishCall expr forward))
+      [expr forward])))
+
 (defn unary
   [parser]
   (let [forward (advance parser)
@@ -93,7 +118,8 @@
     (case operator
       (:bang :minus) (let [[right forward] (unary forward)]
                        [{:expr-type :unary :token token :right right} forward])
-      (primary parser))))
+      (call parser))))
+
 
 (defn factor
   [parser]
