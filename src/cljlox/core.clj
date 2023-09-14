@@ -7,7 +7,7 @@
 
 (defn run
   "Run a string"
-  ([source] (run source (environment/create)))
+  ([source] (run source (interpreter/initialize)))
   ([source env]
    (try
      (-> source
@@ -25,7 +25,7 @@
 (defn runPrompt
   "Run a prompt"
   []
-  (let [env (environment/create)]
+  (let [env (interpreter/initialize)]
     (loop []
       (print "> ")
       (flush)

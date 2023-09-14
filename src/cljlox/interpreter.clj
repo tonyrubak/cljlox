@@ -2,13 +2,17 @@
   (:require [cljlox.errors :as errors]
             [cljlox.environment :as environment]))
 
+(defn initialize
+  []
+  (let [env (environment/create)]
+    (environment/define env "clock" {:call (fn [_ _] (/ (System/currentTimeMillis) 1000.)) :arity 0})
+    env))
 
 (defn isTruthy? [value]
   (case value
     nil false
     false false
     true))
-
 
 (defn checkNumericOperand
   [operand]
@@ -160,9 +164,9 @@
   (let [callee (interpret (:callee expr) env)
         arguments (map #(interpret % env) (:arguments expr))]
     (if-let [function (:call callee)]
-      (if (= (count arguments) (:arity function))
+      (if (= (count arguments) (:arity callee))
         (function arguments env)
-        (throw (ex-info (str "Expected " (:arity function) " arguments but got " (count arguments) ".") {:token (:token expr)})))
+        (throw (ex-info (str "Expected " (:arity callee) " arguments but got " (count arguments) ".") {:token (:name (:callee expr))})))
       (throw (ex-info "Can only call functions and classes." {:token (:token expr)})))))
     
 (defn run
