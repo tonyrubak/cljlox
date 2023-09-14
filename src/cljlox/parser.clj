@@ -85,7 +85,6 @@
                       (throw (error (current forward) "Expect ')' after expression."))))
       (throw (error (current parser) "Expect expression.")))))
 
-
 (defn getArguments
   [parser]
   (loop [arguments nil

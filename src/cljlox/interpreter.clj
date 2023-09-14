@@ -156,6 +156,15 @@
 (defmethod interpret :break [expr _]
   (throw (ex-info "Break statement not within loop." {:cause :break :token (:token expr)})))
 
+(defmethod interpret :call [expr env]
+  (let [callee (interpret (:callee expr) env)
+        arguments (map #(interpret % env) (:arguments expr))]
+    (if-let [function (:call callee)]
+      (if (= (count arguments) (:arity function))
+        (function arguments env)
+        (throw (ex-info (str "Expected " (:arity function) " arguments but got " (count arguments) ".") {:token (:token expr)})))
+      (throw (ex-info "Can only call functions and classes." {:token (:token expr)})))))
+    
 (defn run
   [statements env]
   (doseq [statement statements]
