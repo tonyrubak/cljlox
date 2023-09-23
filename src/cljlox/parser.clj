@@ -335,7 +335,9 @@
   [parser]
   (if-let [forward (match parser :var)]
     (varDeclaration forward)
-    (statement parser)))
+    (if-let [forward (match parser :fun)]
+      (function forward :function)
+      (statement parser))))
 
 (defn parse
   "Parse tokens"
