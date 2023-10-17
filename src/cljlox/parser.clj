@@ -319,6 +319,16 @@
       [{:statement-type :break :token token} forward]
       (throw (error (current parser) "Expect ';' after 'break'.")))))
 
+(defn returnStatement
+  [parser]
+  (let [keyword (previous parser)
+        [value forward] (if (check parser :semicolon)
+                          [nil parser]
+                          (expression parser))]
+    (if-let [forward (match forward :semicolon)]
+      [{:statement-type :return :name keyword :value value} forward]
+      (throw (error (current parser) "Expect ';' after return value.")))))
+
 (defn statement
   [parser]
   (let [token (current parser)]
@@ -329,6 +339,7 @@
       :while (whileStatement (advance parser))
       :for (forStatement (advance parser))
       :break (breakStatement (advance parser))
+      :return (returnStatement (advance parser))
       (expressionStatement parser))))
 
 (defn get-function-name

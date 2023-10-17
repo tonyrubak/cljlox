@@ -181,6 +181,15 @@
   (let [f (function/->LoxFunction expr)]
     (environment/define env (:lexeme (:name expr)) f)
     nil))
+
+(defmethod interpret :return [expr env]
+  (let [value (if-let [value (:value expr)]
+                (interpret value env)
+                nil)]
+    (throw
+     (ex-info
+      "Return outside function call."
+      {:cause :return :token (:token expr) :value value}))))
     
 (defn run
   [statements env]

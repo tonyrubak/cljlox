@@ -9,8 +9,13 @@
     (let [env (environment/create (:globals interpreter))]
       (doseq [[param arg] (map vector (:params declaration) arguments)]
         (environment/define env (:lexeme param) arg))
-      ((:fn interpreter) (:body declaration) env)
-      nil))
+      (try
+        ((:fn interpreter) (:body declaration) env)
+        nil
+        (catch Exception e
+          (if (= :return (-> e ex-data :cause))
+            (-> e ex-data :value)
+            (throw e))))))
   (arity [_]
     (count (:params declaration)))
   (toString [_]
