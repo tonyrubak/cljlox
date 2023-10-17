@@ -59,15 +59,15 @@
     (advance parser)
     nil))
 
-(declare expression)
-(declare declaration)
-(declare statement)
-
 (defn consume
   [parser token-type]
   (if (check parser token-type)
-    (advance parser)
+    [(current parser) (advance parser)]
     nil))
+
+(declare expression)
+(declare declaration)
+(declare statement)
 
 (defn primary
   [parser]
@@ -80,7 +80,7 @@
       :string [{:expr-type :literal :value (:literal (current parser)) :type :string} (advance parser)]
       :identifier [{:expr-type :variable :name (current parser)} (advance parser)]
       :left-paren (let [[inner forward] (expression (advance parser))]
-                    (if-let [forward (consume forward :right-paren)]
+                    (if-let [forward (match forward :right-paren)]
                       [{:expr-type :grouping :expression inner} forward]
                       (throw (error (current forward) "Expect ')' after expression."))))
       (throw (error (current parser) "Expect expression.")))))
@@ -89,10 +89,10 @@
   [parser]
   (loop [arguments nil
          forward parser]
-    (if-let [forward (consume forward :right-paren)]
+    (if-let [forward (match forward :right-paren)]
       [forward (into [] (reverse arguments))]
       (let [[argument forward] (expression forward)]
-        (if-let [forward (consume forward :comma)]
+        (if-let [forward (match forward :comma)]
           (recur (cons argument arguments) forward)
           (recur (cons argument arguments) forward))))))
 
@@ -224,25 +224,25 @@
 (defn printStatement
   [parser]
   (let [[value forward] (expression (advance parser))]
-    (if-let [forward (consume forward :semicolon)]
+    (if-let [forward (match forward :semicolon)]
       [{:statement-type :print :expression value} forward]
       (throw (error (current forward) "Expect ';' after value.")))))
 
 (defn expressionStatement
   [parser]
   (let [[value forward] (expression parser)]
-    (if-let [forward (consume forward :semicolon)]
+    (if-let [forward (match forward :semicolon)]
       [{:statement-type :expression :expression value} forward]
       (throw (error (current forward) "Expect ';' after expression.")))))
 
 (defn varDeclaration
   [parser]
-  (if-let [forward (consume parser :identifier)]
+  (if-let [forward (match parser :identifier)]
     (let [name (previous forward)
           [initializer forward] (if (check forward :equal)
                                   (expression (advance forward))
                                   [nil forward])]
-      (if-let [forward (consume forward :semicolon)]
+      (if-let [forward (match forward :semicolon)]
         [{:statement-type :var :name name :initializer initializer} forward]
         (throw (error (current forward) "Expect ';' after variable declaration."))))
     (throw (error (current parser) "Expect variable name."))))
@@ -255,17 +255,17 @@
              (not (check forward :right-brace)))
       (let [[statement forward] (declaration forward)]
         (recur (cons statement statements) forward))
-      (if-let [forward (consume forward :right-brace)]
+      (if-let [forward (match forward :right-brace)]
         [{:statement-type :block :statements (into [] (reverse statements))} forward]
         (throw (error (current forward) "Expect '}' after block."))))))
 
 (defn ifStatement
   [parser]
-  (if-let [forward (consume parser :left-paren)]
+  (if-let [forward (match parser :left-paren)]
     (let [[condition forward] (expression forward)]
-      (if-let [forward (consume forward :right-paren)]
+      (if-let [forward (match forward :right-paren)]
         (let [[thenBranch forward] (statement forward)]
-          (if-let [forward (consume forward :else)]
+          (if-let [forward (match forward :else)]
             (let [[elseBranch forward] (statement forward)]
               [{:statement-type :if :condition condition :then-branch thenBranch :else-branch elseBranch} forward])
             [{:statement-type :if :condition condition :then-branch thenBranch :else-branch nil} forward]))
@@ -274,9 +274,9 @@
 
 (defn whileStatement
   [parser]
-  (if-let [forward (consume parser :left-paren)]
+  (if-let [forward (match parser :left-paren)]
     (let [[condition forward] (expression forward)]
-      (if-let [forward (consume forward :right-paren)]
+      (if-let [forward (match forward :right-paren)]
         (let [[body forward] (statement forward)]
           [{:statement-type :while :condition condition :body body} forward])
         (throw (error (current forward) "Expect ')' after while condition."))))
@@ -284,7 +284,7 @@
 
 (defn forStatement
   [parser]
-  (if-let [forward (consume parser :left-paren)]
+  (if-let [forward (match parser :left-paren)]
     (let [[initializer forward]
           (case (:token-type (current forward))
             :semicolon [nil (advance forward)]
@@ -296,7 +296,7 @@
           [increment forward] (if (not (check forward :right-paren))
                                 (expression (advance forward))
                                 [nil forward])]
-      (if-let [forward (consume forward :right-paren)]
+      (if-let [forward (match forward :right-paren)]
         (let [[body forward] (statement forward)
               statements (if-let [init initializer]
                            (list init)
@@ -315,7 +315,7 @@
 (defn breakStatement
   [parser]
   (let [token (previous parser)]
-    (if-let [forward (consume parser :semicolon)]
+    (if-let [forward (match parser :semicolon)]
       [{:statement-type :break :token token} forward]
       (throw (error (current parser) "Expect ';' after 'break'.")))))
 
@@ -330,6 +330,45 @@
       :for (forStatement (advance parser))
       :break (breakStatement (advance parser))
       (expressionStatement parser))))
+
+(defn get-function-name
+  [parser]
+  (if-let [[name forward] (consume parser :identifier)]
+    (if-let [forward (match forward :left-paren)]
+      [forward {:name name :statement-type :function}]
+      (throw (error (current parser) "Expect '(' after function name.")))
+    (throw (error (current parser) "Expect function name."))))
+
+(defn get-function-parameters
+  [[parser f]]
+  (if-let [forward (match parser :right-paren)]
+    [forward f]
+    (loop [parameters nil
+           forward parser]
+      (if-let [[identifier forward] (consume forward :identifier)]
+        (if-let [forward (match forward :comma)]
+          (recur (cons identifier parameters) forward)
+          (if-let [forward (match forward :right-paren)]
+            (if (> (count parameters) 255)
+              (throw (error (current forward) "The number of parameters must be less than 250."))
+              [forward (assoc f :params (into [] (reverse (cons identifier parameters))))])
+            (throw (error (current forward) "Expect ')' after parameters."))))
+        (throw (error (current parser) "Expect parameter name."))))))
+
+(defn get-function-body
+  [[parser f]]
+  (if-let [forward (match parser :left-brace)]
+    (let [[body forward] (block forward)]
+      [forward (assoc f :body body)])
+    (throw (error (current parser) "Expect '{' before function body."))))
+
+(defn function
+  [parser _]
+  (-> parser
+      (get-function-name)
+      (get-function-parameters)
+      (get-function-body)
+      ((fn [[forward f]] [f forward]))))
 
 (defn declaration
   [parser]

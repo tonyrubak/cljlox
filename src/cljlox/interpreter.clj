@@ -1,11 +1,19 @@
 (ns cljlox.interpreter
-  (:require [cljlox.errors :as errors]
-            [cljlox.environment :as environment]))
+  (:require [cljlox.callable :as callable]
+            [cljlox.errors :as errors]
+            [cljlox.environment :as environment]
+            [cljlox.function :as function]))
 
 (defn initialize
   []
   (let [env (environment/create)]
-    (environment/define env "clock" {:call (fn [_ _] (/ (System/currentTimeMillis) 1000.)) :arity 0})
+    (environment/define
+      env
+      "clock"
+      (reify callable/LoxCallable
+        (call [_ _ _] (/ (System/currentTimeMillis) 1000.))
+        (arity [_] 0)
+        (toString [_] "<native fn>")))
     env))
 
 (defn isTruthy? [value]
@@ -163,11 +171,16 @@
 (defmethod interpret :call [expr env]
   (let [callee (interpret (:callee expr) env)
         arguments (map #(interpret % env) (:arguments expr))]
-    (if-let [function (:call callee)]
-      (if (= (count arguments) (:arity callee))
-        (function arguments env)
-        (throw (ex-info (str "Expected " (:arity callee) " arguments but got " (count arguments) ".") {:token (:name (:callee expr))})))
+    (if (satisfies? callable/LoxCallable callee)
+      (if (= (count arguments) (. callee arity))
+        (. callee call {:globals env :fn (fn [expr env] (interpret expr env))} arguments)
+        (throw (ex-info (str "Expected " (. callee arity) " arguments but got " (count arguments) ".") {:token (:name (:callee expr))})))
       (throw (ex-info "Can only call functions and classes." {:token (:token expr)})))))
+
+(defmethod interpret :function [expr env]
+  (let [f (function/->LoxFunction expr)]
+    (environment/define env (:lexeme (:name expr)) f)
+    nil))
     
 (defn run
   [statements env]
