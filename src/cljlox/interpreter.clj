@@ -173,12 +173,12 @@
         arguments (map #(interpret % env) (:arguments expr))]
     (if (satisfies? callable/LoxCallable callee)
       (if (= (count arguments) (. callee arity))
-        (. callee call {:globals env :fn (fn [expr env] (interpret expr env))} arguments)
+        (. callee call interpret arguments)
         (throw (ex-info (str "Expected " (. callee arity) " arguments but got " (count arguments) ".") {:token (:name (:callee expr))})))
       (throw (ex-info "Can only call functions and classes." {:token (:token expr)})))))
 
 (defmethod interpret :function [expr env]
-  (let [f (function/->LoxFunction expr)]
+  (let [f (function/->LoxFunction expr (atom @env))]
     (environment/define env (:lexeme (:name expr)) f)
     nil))
 

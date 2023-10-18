@@ -3,14 +3,14 @@
             [cljlox.environment :as environment]))
 
 
-(defrecord LoxFunction [declaration]
+(defrecord LoxFunction [declaration closure]
   callable/LoxCallable
-  (call [_ interpreter arguments]
-    (let [env (environment/create (:globals interpreter))]
+  (call [_ interpret-method arguments]
+    (let [env (environment/create closure)]
       (doseq [[param arg] (map vector (:params declaration) arguments)]
         (environment/define env (:lexeme param) arg))
       (try
-        ((:fn interpreter) (:body declaration) env)
+        (interpret-method (:body declaration) env)
         nil
         (catch Exception e
           (if (= :return (-> e ex-data :cause))
