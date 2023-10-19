@@ -30,7 +30,7 @@
 
 (defmulti interpret (fn [expr _] (if-let [expr-type (:expr-type expr)]
                                      expr-type
-                                     (:statement-type expr))))
+                                     (:stmt-type expr))))
 
 (defmethod interpret :var [expr env]
   (if-let [initializer (:initializer expr)]
