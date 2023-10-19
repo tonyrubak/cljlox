@@ -32,7 +32,7 @@
                                      expr-type
                                      (:stmt-type expr))))
 
-(defmethod interpret :var [expr env]
+(defmethod interpret :varStmt [expr env]
   (if-let [initializer (:initializer expr)]
     (let [value (interpret initializer env)]
       (environment/define env (:lexeme (:name expr)) value))
@@ -41,7 +41,7 @@
 (defmethod interpret :expression [expr env]
   (interpret (:expression expr) env))
 
-(defmethod interpret :print [expr env]
+(defmethod interpret :printStmt [expr env]
   (println (interpret (:expression expr) env))
   (flush))
 
@@ -128,7 +128,7 @@
         name (:lexeme (:name expr))]
     (environment/assign env name value)))
 
-(defmethod interpret :if [expr env]
+(defmethod interpret :ifStmt [expr env]
   (if (isTruthy? (interpret (:condition expr) env))
     (interpret (:then-branch expr) env)
     (if-let [elseBranch (:else-branch expr)]
@@ -152,11 +152,11 @@
   (doseq [statement statements]
     (interpret statement env)))
 
-(defmethod interpret :block [expr env]
+(defmethod interpret :blockStmt [expr env]
   (executeBlock (:statements expr) (environment/create env)))
 
 
-(defmethod interpret :while [expr env]
+(defmethod interpret :whileStmt [expr env]
   (try
     (while (isTruthy? (interpret (:condition expr) env))
       (interpret (:body expr) env))
@@ -165,7 +165,7 @@
         nil
         (throw e)))))
 
-(defmethod interpret :break [expr _]
+(defmethod interpret :breakStmt [expr _]
   (throw (ex-info "Break statement not within loop." {:cause :break :token (:token expr)})))
 
 (defmethod interpret :call [expr env]
@@ -177,12 +177,12 @@
         (throw (ex-info (str "Expected " (. callee arity) " arguments but got " (count arguments) ".") {:token (:name (:callee expr))})))
       (throw (ex-info "Can only call functions and classes." {:token (:token expr)})))))
 
-(defmethod interpret :function [expr env]
+(defmethod interpret :functionStmt [expr env]
   (let [f (function/->LoxFunction expr (atom @env))]
     (environment/define env (:lexeme (:name expr)) f)
     nil))
 
-(defmethod interpret :return [expr env]
+(defmethod interpret :returnStmt [expr env]
   (let [value (if-let [value (:value expr)]
                 (interpret value env)
                 nil)]

@@ -225,7 +225,7 @@
   [parser]
   (let [[value forward] (expression (advance parser))]
     (if-let [forward (match forward :semicolon)]
-      [{:stmt-type :print :expression value} forward]
+      [{:stmt-type :printStmt :expression value} forward]
       (throw (error (current forward) "Expect ';' after value.")))))
 
 (defn expressionStatement
@@ -243,7 +243,7 @@
                                   (expression (advance forward))
                                   [nil forward])]
       (if-let [forward (match forward :semicolon)]
-        [{:stmt-type :var :name name :initializer initializer} forward]
+        [{:stmt-type :varStmt :name name :initializer initializer} forward]
         (throw (error (current forward) "Expect ';' after variable declaration."))))
     (throw (error (current parser) "Expect variable name."))))
 
@@ -256,7 +256,7 @@
       (let [[statement forward] (declaration forward)]
         (recur (cons statement statements) forward))
       (if-let [forward (match forward :right-brace)]
-        [{:stmt-type :block :statements (into [] (reverse statements))} forward]
+        [{:stmt-type :blockStmt :statements (into [] (reverse statements))} forward]
         (throw (error (current forward) "Expect '}' after block."))))))
 
 (defn ifStatement
@@ -267,8 +267,8 @@
         (let [[thenBranch forward] (statement forward)]
           (if-let [forward (match forward :else)]
             (let [[elseBranch forward] (statement forward)]
-              [{:stmt-type :if :condition condition :then-branch thenBranch :else-branch elseBranch} forward])
-            [{:stmt-type :if :condition condition :then-branch thenBranch :else-branch nil} forward]))
+              [{:stmt-type :ifStmt :condition condition :then-branch thenBranch :else-branch elseBranch} forward])
+            [{:stmt-type :ifStmt :condition condition :then-branch thenBranch :else-branch nil} forward]))
         (throw (error (current forward) "Expect ')' after if condition."))))
     (throw (error (current parser) "Expect '(' after 'if'."))))
 
@@ -278,7 +278,7 @@
     (let [[condition forward] (expression forward)]
       (if-let [forward (match forward :right-paren)]
         (let [[body forward] (statement forward)]
-          [{:stmt-type :while :condition condition :body body} forward])
+          [{:stmt-type :whileStmt :condition condition :body body} forward])
         (throw (error (current forward) "Expect ')' after while condition."))))
     (throw (error (current parser) "Expect '(' after 'while'."))))
 
@@ -302,13 +302,13 @@
                            (list init)
                            nil)
               body (if-let [inc increment]
-                     {:stmt-type :block :statements [body inc]}
+                     {:stmt-type :blockStmt :statements [body inc]}
                      body)
               body (if-let [cond condition]
-                     {:stmt-type :while :condition cond :body body}
-                     {:stmt-type :while :condition {:expr-type :literal :value true :type :boolean} :body body})
+                     {:stmt-type :whileStmt :condition cond :body body}
+                     {:stmt-type :whileStmt :condition {:expr-type :literal :value true :type :boolean} :body body})
               statements (cons body statements)]
-          [{:stmt-type :block :statements (into [] (reverse statements))} forward])
+          [{:stmt-type :blockStmt :statements (into [] (reverse statements))} forward])
         (throw (error (current forward) "Expect ')' after for clauses."))))
     (throw (error (current parser) "Expect '(' after 'for'."))))
 
@@ -316,7 +316,7 @@
   [parser]
   (let [token (previous parser)]
     (if-let [forward (match parser :semicolon)]
-      [{:stmt-type :break :token token} forward]
+      [{:stmt-type :breakStmt :token token} forward]
       (throw (error (current parser) "Expect ';' after 'break'.")))))
 
 (defn returnStatement
@@ -326,7 +326,7 @@
                           [nil parser]
                           (expression parser))]
     (if-let [forward (match forward :semicolon)]
-      [{:stmt-type :return :name keyword :value value} forward]
+      [{:stmt-type :returnStmt :name keyword :value value} forward]
       (throw (error (current parser) "Expect ';' after return value.")))))
 
 (defn statement
@@ -346,7 +346,7 @@
   [parser]
   (if-let [[name forward] (consume parser :identifier)]
     (if-let [forward (match forward :left-paren)]
-      [forward {:name name :stmt-type :function}]
+      [forward {:name name :stmt-type :functionStmt}]
       (throw (error (current parser) "Expect '(' after function name.")))
     (throw (error (current parser) "Expect function name."))))
 
