@@ -73,15 +73,15 @@
   [parser]
   (let [token (current parser)]
     (case (:token-type token)
-      :false [{:expr-type :literal :value false :type :boolean} (advance parser)]
-      :true [{:expr-type :literal :value true :type :boolean} (advance parser)]
-      :nil [{:expr-type :literal :value nil :type :nil} (advance parser)]
-      :number [{:expr-type :literal :value (:literal (current parser)) :type :number} (advance parser)]
-      :string [{:expr-type :literal :value (:literal (current parser)) :type :string} (advance parser)]
-      :identifier [{:expr-type :variable :name (current parser)} (advance parser)]
+      :false [{:stmt-type :exprStmt :expr-type :literal :value false :type :boolean} (advance parser)]
+      :true [{:stmt-type :exprStmt :expr-type :literal :value true :type :boolean} (advance parser)]
+      :nil [{:stmt-type :exprStmt :expr-type :literal :value nil :type :nil} (advance parser)]
+      :number [{:stmt-type :exprStmt :expr-type :literal :value (:literal (current parser)) :type :number} (advance parser)]
+      :string [{:stmt-type :exprStmt :expr-type :literal :value (:literal (current parser)) :type :string} (advance parser)]
+      :identifier [{:stmt-type :exprStmt :expr-type :variable :name (current parser)} (advance parser)]
       :left-paren (let [[inner forward] (expression (advance parser))]
                     (if-let [forward (match forward :right-paren)]
-                      [{:expr-type :grouping :expression inner} forward]
+                      [{:stmt-type :exprStmt :expr-type :grouping :expression inner} forward]
                       (throw (error (current forward) "Expect ')' after expression."))))
       (throw (error (current parser) "Expect expression.")))))
 
@@ -100,7 +100,7 @@
   [callee parser]
   (-> parser
       (getArguments)
-      ((fn [result] [{:expr-type :call :callee callee :arguments (second result)} (first result)]))))
+      ((fn [result] [{:stmt-type :exprStmt :expr-type :call :callee callee :arguments (second result)} (first result)]))))
 
 (defn call
   [parser]
@@ -116,7 +116,7 @@
         operator (:token-type token)]
     (case operator
       (:bang :minus) (let [[right forward] (unary forward)]
-                       [{:expr-type :unary :token token :right right} forward])
+                       [{:stmt-type :exprStmt :expr-type :unary :token token :right right} forward])
       (call parser))))
 
 
@@ -127,7 +127,7 @@
           operator (:token-type token)]
       (case operator
         (:star :slash) (let [[right forward] (unary (advance forward))]
-                         (recur [{:expr-type :binary
+                         (recur [{:stmt-type :exprStmt :expr-type :binary
                                   :token token
                                   :left expr
                                   :right right}
@@ -141,7 +141,7 @@
           operator (:token-type token)]
       (case operator
         (:minus :plus) (let [[right forward] (factor (advance forward))]
-                         (recur [{:expr-type :binary
+                         (recur [{:stmt-type :exprStmt :expr-type :binary
                                   :token token
                                   :left expr
                                   :right right}
@@ -156,7 +156,7 @@
       (case operator
         (:greater :greater-equal :less :less-equal)
         (let [[right forward] (term (advance forward))]
-          (recur [{:expr-type :comparison
+          (recur [{:stmt-type :exprStmt :expr-type :comparison
                    :token token
                    :left expr
                    :right right}
@@ -171,7 +171,7 @@
       (case operator
         (:bang-equal :equal-equal)
         (let [[right forward] (comparison (advance forward))]
-          (recur [{:expr-type :equality
+          (recur [{:stmt-type :exprStmt :expr-type :equality
                    :token token
                    :left expr
                    :right right}
@@ -184,7 +184,7 @@
     (let [token (current forward)]
       (if-let [forward (match forward :and)]
         (let [[right forward] (equality forward)]
-          (recur [{:expr-type :logical
+          (recur [{:stmt-type :exprStmt :expr-type :logical
                    :token token
                    :left expr
                    :right right}
@@ -198,7 +198,7 @@
     (let [token (current forward)]
       (if-let [forward (match forward :or)]
         (let [[right forward] (andExpression forward)]
-          (recur [{:expr-type :logical
+          (recur [{:stmt-type :exprStmt :expr-type :logical
                    :token token
                    :left expr
                    :right right}
@@ -213,7 +213,7 @@
             [value forward] (assignment forward)]
         (if (= (:expr-type expr) :variable)
           (let [name (:name expr)]
-            [{:expr-type :assign :name name :value value} forward])
+            [{:stmt-type :exprStmt :expr-type :assign :name name :value value} forward])
           (throw (error equals "Invalid assignment target."))))
       [expr forward])))
 
@@ -232,7 +232,7 @@
   [parser]
   (let [[value forward] (expression parser)]
     (if-let [forward (match forward :semicolon)]
-      [{:stmt-type :expression :expression value} forward]
+      [{:stmt-type :exprStmt :expr-type :expression :expression value} forward]
       (throw (error (current forward) "Expect ';' after expression.")))))
 
 (defn varDeclaration
@@ -306,7 +306,7 @@
                      body)
               body (if-let [cond condition]
                      {:stmt-type :whileStmt :condition cond :body body}
-                     {:stmt-type :whileStmt :condition {:expr-type :literal :value true :type :boolean} :body body})
+                     {:stmt-type :whileStmt :condition {:stmt-type :exprStmt :expr-type :literal :value true :type :boolean} :body body})
               statements (cons body statements)]
           [{:stmt-type :blockStmt :statements (into [] (reverse statements))} forward])
         (throw (error (current forward) "Expect ')' after for clauses."))))

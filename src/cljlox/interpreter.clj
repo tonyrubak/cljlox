@@ -28,9 +28,9 @@
     operand
     nil))
 
-(defmulti interpret (fn [expr _] (if-let [expr-type (:expr-type expr)]
-                                     expr-type
-                                     (:stmt-type expr))))
+(defmulti interpret (fn [expr _] (case (:stmt-type expr)
+                                   :exprStmt (:expr-type expr)
+                                   (:stmt-type expr))))
 
 (defmethod interpret :varStmt [expr env]
   (if-let [initializer (:initializer expr)]
